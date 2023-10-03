@@ -57,18 +57,10 @@ export const upsertByExternalIdBulk = createAction({
     );
 
     // notify upload complete
-    await notifyBulkJobComplete(
+    const response = await notifyBulkJobComplete(
       HttpMethod.PATCH,
       context.auth,
       { state: 'UploadComplete' },
-      jobId
-    ).catch((e) => {
-      throw new Error(`job failed: ${JSON.stringify(e)}`);
-    });
-
-    const response = await getBulkJobInfo(
-      HttpMethod.GET,
-      context.auth,
       jobId
     ).catch((e) => {
       throw new Error(`job failed: ${JSON.stringify(e)}`);
