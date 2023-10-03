@@ -1,0 +1,43 @@
+{
+  "name": "pieces-instructure-canvas",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/pieces/instructure-canvas/src",
+  "projectType": "library",
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "options": {
+        "outputPath": "dist/packages/pieces/instructure-canvas",
+        "tsConfig": "packages/pieces/instructure-canvas/tsconfig.lib.json",
+        "packageJson": "packages/pieces/instructure-canvas/package.json",
+        "main": "packages/pieces/instructure-canvas/src/index.ts",
+        "assets": [
+          "packages/pieces/instructure-canvas/*.md"
+        ],
+        "buildableProjectDepsInPackageJsonType": "dependencies"
+      }
+    },
+    "publish": {
+      "command": "node tools/scripts/publish.mjs pieces-instructure-canvas {args.ver} {args.tag}",
+      "dependsOn": [
+        "build"
+      ]
+    },
+    "lint": {
+      "executor": "@nx/linter:eslint",
+      "outputs": [
+        "{options.outputFile}"
+      ],
+      "options": {
+        "lintFilePatterns": [
+          "packages/pieces/instructure-canvas/**/*.ts",
+          "packages/pieces/instructure-canvas/package.json"
+        ]
+      }
+    }
+  },
+  "tags": []
+}
