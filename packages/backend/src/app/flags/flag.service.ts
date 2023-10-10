@@ -6,6 +6,7 @@ import { FlagEntity } from './flag.entity'
 import axios from 'axios'
 import { webhookService } from '../webhooks/webhook-service'
 import { getEdition } from '../helper/secret-helper'
+import { theme } from './theme'
 
 const flagRepo = databaseConnection.getRepository(FlagEntity)
 
@@ -57,6 +58,24 @@ export const flagService = {
                 updated,
             },
             {
+                id: ApFlagId.BILLING_ENABLED,
+                value: getEdition() === ApEdition.CLOUD,
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.PROJECT_MEMBERS_ENABLED,
+                value: getEdition() !== ApEdition.COMMUNITY,
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.THEME,
+                value: theme,
+                created,
+                updated,
+            },
+            {
                 id: ApFlagId.SHOW_DOCS,
                 value: getEdition() !== ApEdition.ENTERPRISE,
                 created,
@@ -65,6 +84,12 @@ export const flagService = {
             {
                 id: ApFlagId.SHOW_COMMUNITY,
                 value: getEdition() !== ApEdition.ENTERPRISE,
+                created,
+                updated,
+            },
+            {
+                id: ApFlagId.PRIVATE_PIECES_ENABLED,
+                value: false,
                 created,
                 updated,
             },
@@ -116,9 +141,19 @@ export const flagService = {
                 created,
                 updated,
             },
+            {
+                id: ApFlagId.TEMPLATES_PROJECT_ID,
+                value: system.get(SystemProp.TEMPLATES_PROJECT_ID),
+                created,
+                updated,
+            },
         )
 
         return flags
+    },
+    async getCurrentRelease() {
+        const currentVersion = (await import('package.json')).version
+        return currentVersion
     },
     async getLatestPackageDotJson() {
         try {
