@@ -43,7 +43,7 @@ function constructEveryXMinuteCron(minute: number) {
             return `*/${minute} * * * *`
         case ApEdition.COMMUNITY:
         case ApEdition.ENTERPRISE:
-            return `*/$${system.getNumber(
+            return `*/${system.getNumber(
                 SystemProp.TRIGGER_DEFAULT_POLL_INTERVAL,
             ) ?? 5} * * * *`
     }
@@ -348,7 +348,7 @@ async function getPieceTrigger({
     trigger: PieceTrigger
     projectId: ProjectId
 }): Promise<TriggerBase> {
-    const piece = await pieceMetadataService.get({
+    const piece = await pieceMetadataService.getOrThrow({
         projectId,
         name: trigger.settings.pieceName,
         version: trigger.settings.pieceVersion,
