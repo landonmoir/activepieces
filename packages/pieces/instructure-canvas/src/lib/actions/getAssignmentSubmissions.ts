@@ -18,12 +18,22 @@ export const getAssignmentSubmissions = createAction({
       displayName: 'Assignment Id',
       required: true,
     }),
+    min_score: Property.Number({
+      displayName: 'Minimum Score',
+      required: false,
+    }),
+    last_n_hours: Property.Number({
+      displayName: 'Return Submission in Last N Hours',
+      required: false,
+    }),
   },
   async run(context) {
     return await canvasApiAssignmentSubmissions(
       context.auth,
       context.propsValue.course_id,
-      context.propsValue.assignment_id
+      context.propsValue.assignment_id,
+      context.propsValue.min_score,
+      context.propsValue.last_n_hours
     );
   },
 });
