@@ -1,10 +1,19 @@
 # See http://help.github.com/ignore-files/ for more about ignoring files.
 
+# Claude Code worktrees
+.claude/worktrees/
+
+pieces-cache-db-*.sqlite
+
 # compiled output
 dist
 tmp
+.turbo/
 /out-tsc
 firebase-admin-sdk.json
+dev
+/cache
+/logs/
 
 # SDK Build
 builds
@@ -20,7 +29,7 @@ node_modules
 *.launch
 .settings/
 *.sublime-workspace
-
+/cache
 # IDE - VSCode
 .vscode/*
 !.vscode/settings.json
@@ -37,15 +46,15 @@ npm-debug.log
 yarn-error.log
 testem.log
 /typings
-
+.turbo/
 # System Files
 .DS_Store
 Thumbs.db
 
+
 .angular
 activepieces-engine.js
 .history/
-packages/backend/.env
 
 # produced by unsandboxed engine execution
 .pnpm-store
@@ -55,3 +64,27 @@ packages/backend/.env
 
 # scratch pad
 scratch.md
+
+# environment variables
+.env*
+
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Turborepo
+.turbo
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/redis-binaries/
+
+# Terraform
+deploy/terraform/**/.terraform/
+deploy/terraform/**/*.tfstate
+deploy/terraform/**/*.tfstate.backup
+deploy/terraform/**/.terraform.lock.hcl
+deploy/terraform/**/terraform.tfvars
+deploy/terraform/**/terraform-*.tfvars

@@ -1,19 +1,30 @@
-import { getAvailablePieceNames } from './utils/get-available-piece-names';
+import { findAllPiecesDirectoryInSource } from './utils/piece-script-utils';
 import { packagePrePublishChecks } from './utils/package-pre-publish-checks';
 
+async function processBatches<T>(items: T[], batchSize: number, processor: (item: T) => Promise<any>): Promise<any[]> {
+  const results: any[] = [];
+  for (let i = 0; i < items.length; i += batchSize) {
+    const batch = items.slice(i, i + batchSize);
+    results.push(...await Promise.all(batch.map(processor)));
+    if (i + batchSize < items.length) await new Promise(resolve => setTimeout(resolve, 2000));
+  }
+  return results;
+}
+
 const main = async () => {
-  const piecePackageNames = await getAvailablePieceNames()
+  const piecesMetadata = await findAllPiecesDirectoryInSource()
+  const sharedDeps = ['packages/pieces/framework', 'packages/pieces/common']
+  
+  const sharedResults = await Promise.all(sharedDeps.map(packagePrePublishChecks))
+  const validationResults = await processBatches(
+    piecesMetadata.filter(p => !sharedDeps.includes(p)),
+    10,
+    packagePrePublishChecks
+  )
 
-  const packages = [
-    ...piecePackageNames.map(p => `packages/pieces/${p}`),
-    'packages/pieces/framework',
-    'packages/shared',
-    'packages/pieces/common',
-  ]
-
-  const validationResults = packages.map(p => packagePrePublishChecks(p))
-
-  Promise.all(validationResults);
+  if (!sharedResults.every(p => p)) {
+    validationResults.push(await packagePrePublishChecks('packages/shared'))
+  }
 }
 
 main();

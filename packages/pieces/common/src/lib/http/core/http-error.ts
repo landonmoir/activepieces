@@ -1,43 +1,51 @@
 import { AxiosError } from 'axios';
 
 export class HttpError extends Error {
-	constructor(
-		private readonly _requestBody: unknown,
-		private readonly _err: AxiosError,
-	) {
-		super(JSON.stringify({
-			response: {
-				status: _err?.response?.status || 500,
-				body: _err?.response?.data
-			},
-			request: {
-				body: _requestBody
-			}
-		}));
-	}
+  private readonly status: number;
+  private readonly responseBody: unknown;
 
-	public errorMessage(){
-		return {
-			response: {
-				status: this._err?.response?.status || 500,
-				body: this._err?.response?.data
-			},
-			request: {
-				body: this._requestBody
-			}
-		}
-	}
+  constructor(private readonly requestBody: unknown, err: AxiosError) {
+    const status = err?.response?.status || 500;
+    const responseBody = Buffer.isBuffer(err?.response?.data) ? err?.response?.data.toString() : err?.response?.data;
 
-	get response() {
-		return {
-			status: this._err?.response?.status || 500,
-			body: this._err?.response?.data
-		};
-	}
+    super(
+      JSON.stringify({
+        response: {
+          status: status,
+          body: responseBody,
+        },
+        request: {
+          body: requestBody,
+        },
+      })
+    );
 
-	get request() {
-		return {
-			body: this._requestBody
-		};
-	}
+    this.status = status;
+    this.responseBody = responseBody;
+  }
+
+  public errorMessage() {
+    return {
+      response: {
+        status: this.status,
+        body: this.responseBody,
+      },
+      request: {
+        body: this.requestBody,
+      },
+    };
+  }
+
+  get response() {
+    return {
+      status: this.status,
+      body: this.responseBody,
+    };
+  }
+
+  get request() {
+    return {
+      body: this.requestBody,
+    };
+  }
 }

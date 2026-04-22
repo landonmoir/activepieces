@@ -1,4 +1,7 @@
-import axios, { AxiosRequestConfig, AxiosStatic } from 'axios';
+import axios, { AxiosInstance, AxiosRequestConfig } from 'axios';
+import axiosRetry from 'axios-retry';
+import { HttpProxyAgent } from 'http-proxy-agent';
+import { HttpsProxyAgent } from 'https-proxy-agent';
 import { DelegatingAuthenticationConverter } from '../core/delegating-authentication-converter';
 import { BaseHttpClient } from '../core/base-http-client';
 import { HttpError } from '../core/http-error';
@@ -7,55 +10,105 @@ import { HttpMessageBody } from '../core/http-message-body';
 import { HttpMethod } from '../core/http-method';
 import { HttpRequest } from '../core/http-request';
 import { HttpResponse } from '../core/http-response';
+import { HttpRequestBody } from '../core/http-request-body';
+
 
 
 export class AxiosHttpClient extends BaseHttpClient {
-	constructor(
-		baseUrl = '',
-		authenticationConverter: DelegatingAuthenticationConverter = new DelegatingAuthenticationConverter(),
-	) {
-		super(baseUrl, authenticationConverter);
-	}
+  constructor(
+    baseUrl = '',
+    authenticationConverter: DelegatingAuthenticationConverter = new DelegatingAuthenticationConverter()
+  ) {
+    super(baseUrl, authenticationConverter);
+  }
 
-	async sendRequest<ResponseBody extends HttpMessageBody>(
-		request: HttpRequest<HttpMessageBody>
-	): Promise<HttpResponse<ResponseBody>> {
-		try {
-			process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
-			const url = this.getUrl(request);
-			const headers = this.getHeaders(request);
-			const axiosRequestMethod = this.getAxiosRequestMethod(request.method);
-            const timeout = request.timeout ? request.timeout : 0;
-            const config:AxiosRequestConfig = {
-                method: axiosRequestMethod,
-                url,
-                params: request.queryParams,
-                headers,
-                data: request.body,
-                timeout
-            };
+  async sendRequest<ResponseBody extends HttpMessageBody = any>(
+    request: HttpRequest<HttpRequestBody>,
+    axiosClient?: AxiosInstance
+  ): Promise<HttpResponse<ResponseBody>> {
+    try {
+      const axiosInstance = axiosClient || axios.create();
+      process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
+      const { urlWithoutQueryParams, queryParams: urlQueryParams } =
+        this.getUrl(request);
+      const headers = this.getHeaders(request);
+      const axiosRequestMethod = this.getAxiosRequestMethod(request.method);
+      const timeout = request.timeout ? request.timeout : 0;
+      const queryParams = request.queryParams || {};
+      const responseType = request.responseType || 'json';
 
-            const response = await axios.request(config)
+      for (const [key, value] of Object.entries(queryParams)) {
+        urlQueryParams.append(key, value);
+      }
 
-			return {
-				status: response.status,
-				headers: response.headers as HttpHeaders,
-				body: response.data,
-			};
-		} catch (e) {
-			console.error('[HttpClient#sendRequest] error:', e);
-			if (axios.isAxiosError(e)) {
-                console.error('[HttpClient#sendRequest] error, responseStatus:', e.response?.status);
-                console.error('[HttpClient#sendRequest] error, responseBody:', e.response?.data);
+      const config: AxiosRequestConfig = {
+        method: axiosRequestMethod,
+        url: urlWithoutQueryParams,
+        params: urlQueryParams,
+        headers,
+        data: request.body,
+        timeout,
+        responseType,
+      };
 
-				throw new HttpError(request.body, e);
-			}
+      const httpProxy = process.env['HTTP_PROXY'] ?? process.env['http_proxy'];
+      const httpsProxy = process.env['HTTPS_PROXY'] ?? process.env['https_proxy'];
+      if (httpProxy) {
+        config.httpAgent = new HttpProxyAgent(httpProxy);
+      }
+      if (httpsProxy) {
+        config.httpsAgent = new HttpsProxyAgent(httpsProxy);
+      }
+      if (httpProxy || httpsProxy) {
+        config.proxy = false;
+      }
 
-			throw e;
-		}
-	}
+      if (request.followRedirects === false) {
+        config.maxRedirects = 0;
+        config.validateStatus = (status) =>{
+          if (status >= 400) return false;
+          if (request.followRedirects ?? false) {
+            return status >= 200 && status < 300;
+          }
+          return status >= 200 && status < 400;
+        };
+      }
 
-	private getAxiosRequestMethod(httpMethod: HttpMethod): string {
-		return httpMethod.toString();
-	}
+      if (request.retries && request.retries > 0) {
+        axiosRetry(axiosInstance, {
+          retries: request.retries,
+          retryDelay: axiosRetry.exponentialDelay,
+          retryCondition: (error) => {
+            return (
+              axiosRetry.isNetworkOrIdempotentRequestError(error) ||
+              (error.response && error.response.status >= 500) ||
+              false
+            );
+          },
+        });
+      }
+
+      const response = await axiosInstance.request(config);
+
+      return {
+        status: response.status,
+        headers: response.headers as HttpHeaders,
+        body: response.data,
+      };
+    } catch (e) {
+      if (axios.isAxiosError(e)) {
+        const httpError = new HttpError(request.body, e);
+        console.error(
+          '[HttpClient#(sanitized error message)] Request failed:',
+          httpError
+        );
+        throw httpError;
+      }
+      throw e;
+    }
+  }
+
+  private getAxiosRequestMethod(httpMethod: HttpMethod): string {
+    return httpMethod.toString();
+  }
 }

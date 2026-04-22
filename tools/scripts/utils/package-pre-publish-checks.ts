@@ -7,7 +7,7 @@ import { readPackageJson } from './files'
 const getLatestPublishedVersion = async (packageName: string, maxRetries: number = 5): Promise<string | null> => {
   console.info(`[getLatestPublishedVersion] packageName=${packageName}`);
 
-  const retryDelay = (attempt: number) => Math.pow(4, attempt - 1) * 2000; 
+  const retryDelay = (attempt: number) => Math.pow(4, attempt - 1) * 2000;
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -36,10 +36,35 @@ const getLatestPublishedVersion = async (packageName: string, maxRetries: number
 
 
 const packageChangedFromMainBranch = async (path: string): Promise<boolean> => {
-  console.info(`[packageChangedFromMainBranch] path=${path}`)
+  const cleaned = path.includes('/packages') ? `packages/` + path.split('packages/')[1] : path
+  if (!cleaned.startsWith('packages/')) {
+    throw new Error(`[packageChangedFromMainBranch] path=${cleaned} is not a valid package path`)
+  }
+  console.info(`[packageChangedFromMainBranch] path=${cleaned}`)
 
   try {
-    const diff = await exec(`git diff --quiet origin/main -- ${path}`)
+    const diff = await exec(`git diff --quiet origin/main -- ${cleaned}`)
+    return false
+  }
+  catch (e) {
+    if ((e as ExecException).code === 1) {
+      return true
+    }
+
+    throw e
+  }
+}
+
+const packageJsonChangedFromMainBranch = async (path: string): Promise<boolean> => {
+  const cleaned = path.includes('/packages') ? `packages/` + path.split('packages/')[1] : path
+  if (!cleaned.startsWith('packages/')) {
+    throw new Error(`[packageJsonChangedFromMainBranch] path=${cleaned} is not a valid package path`)
+  }
+  const packageJsonPath = `${cleaned}/package.json`
+  console.info(`[packageJsonChangedFromMainBranch] path=${packageJsonPath}`)
+
+  try {
+    await exec(`git diff --quiet origin/main -- ${packageJsonPath}`)
     return false
   }
   catch (e) {
@@ -71,6 +96,13 @@ export const packagePrePublishChecks = async (path: string): Promise<boolean> =>
     const packageChanged = await packageChangedFromMainBranch(path)
 
     if (packageChanged) {
+      const packageJsonChanged = await packageJsonChangedFromMainBranch(path)
+
+      if (packageJsonChanged) {
+        console.info(`[packagePrePublishValidation] package already published from this branch (package.json changed), path=${path}, version=${currentVersion}`)
+        return true
+      }
+
       throw new Error(`[packagePrePublishValidation] package version not incremented, path=${path}, version=${currentVersion}`)
     }
 
